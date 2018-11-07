@@ -13,7 +13,7 @@ You can find an app.py file on the project as an example of the application to r
 ## Build the Docker Image
 * Create a new Folder to download the Application Files.
 * Download the app.py and the Dockerfile files.
-* Go to the folder where the application files where downloaded.
+* Go to the folder where the application files were downloaded.
 * Run the following command (You need to have Docker installed)
 ```
 docker build -t name-of-your-image .
