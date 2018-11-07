@@ -1,0 +1,34 @@
+Description:
+  ElastiCache Service for the API
+
+Parameters:
+  VPCSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+  
+  ElastiCacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+
+Resources:    
+  SubnetGroup:
+      Type: "AWS::ElastiCache::SubnetGroup"
+      Properties:
+        CacheSubnetGroupName: Subnetgroup
+        Description: Subnet group for redis
+        SubnetIds: !Ref VPCSubnets
+  
+  ElastiCacheCluster:
+    Type: AWS::ElastiCache::CacheCluster
+    Properties:
+      AutoMinorVersionUpgrade: "true"
+      Engine: "redis"
+      CacheNodeType: "cache.t2.micro"
+      CacheSubnetGroupName: !Ref SubnetGroup
+      ClusterName: ECSRedisCluster
+      NumCacheNodes: "1"
+      VpcSecurityGroupIds:
+        - !Ref ElastiCacheSecurityGroup
+        
+Outputs:
+    ElastiCacheCluster:
+        Description: ElasticCacheCluster Endpoint
+        Value: !GetAtt ElastiCacheCluster.RedisEndpoint.Address

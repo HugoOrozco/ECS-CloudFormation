@@ -1,0 +1,117 @@
+Description: 
+    Cloud Formation Template for deploying an ECS Cluster with Application Load Balancer
+
+Parameters:
+  AppContainerPort:
+    Type: Number
+    Description: Container port of application
+  AppName:
+    Type: String
+    Description: Name of the Application
+  AppSubnets:
+    Description: Subnets for the whole application platform
+    Type: List<AWS::EC2::Subnet::Id>
+  ClusterName:
+    Type: String
+    Description: Name for the ECS Cluster
+  DesiredCapacity:
+    Type: Number
+    Default: '1'
+    Description: Number of instances to launch in your ECS cluster.
+  DesiredCount:
+    Type: Number
+    Default: '1'
+    Description: Desired count of containers to launch into the ECS cluster.
+  Image:
+    Description: Image location for the ECS container.
+    Type: String
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    AllowedValues: [t2.micro, t2.small, t2.medium, t2.large, m3.medium, m3.large,
+      m3.xlarge, m3.2xlarge, m4.large, m4.xlarge, m4.2xlarge, m4.4xlarge, m4.10xlarge,
+      c4.large, c4.xlarge, c4.2xlarge, c4.4xlarge, c4.8xlarge, c3.large, c3.xlarge,
+      c3.2xlarge, c3.4xlarge, c3.8xlarge, r3.large, r3.xlarge, r3.2xlarge, r3.4xlarge,
+      r3.8xlarge, i2.xlarge, i2.2xlarge, i2.4xlarge, i2.8xlarge]
+    ConstraintDescription: Please choose a valid instance type.
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+  MaxSize:
+    Type: Number
+    Default: '1'
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+  ServiceName:
+    Description: Name for the ECS Service
+    Type: String
+  VPC:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC for the whole application platform
+
+Resources:
+
+  IAMRoleTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/cloudformation-hrou/IAMRole.yml
+      TimeoutInMinutes: 20
+
+  SecurityGroupTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/cloudformation-hrou/SecurityGroups.yml
+      TimeoutInMinutes: 20
+      Parameters:
+        VPC:      !Ref VPC
+  
+  ElastiCacheTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/cloudformation-hrou/ElastiCache.yml
+      TimeoutInMinutes: 20
+      Parameters:
+        VPCSubnets:                 !Join [ ",", !Ref AppSubnets ]
+        ElastiCacheSecurityGroup:   !GetAtt SecurityGroupTemplate.Outputs.ElastiCacheSecurityGroup
+  
+  ALBTemplate:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/cloudformation-hrou/ALB.yml
+      TimeoutInMinutes: 20
+      Parameters:
+        VPC:                        !Ref VPC
+        Subnets:                    !Join [ ",", !Ref AppSubnets ]
+        ALBSecurityGroup:           !GetAtt SecurityGroupTemplate.Outputs.ALBSecurityGroup
+        AppContainerPort:           !Ref AppContainerPort
+  
+  ECSClusterTemplate:
+    Type: AWS::CloudFormation::Stack
+    DependsOn: 
+      - IAMRoleTemplate
+      - ALBTemplate
+      - SecurityGroupTemplate
+      - ElastiCacheTemplate
+    Properties:
+      TemplateURL: https://s3.amazonaws.com/cloudformation-hrou/ECSCluster.yml
+      TimeoutInMinutes: 30
+      Parameters:
+        AppContainerPort:   !Ref AppContainerPort
+        AppName:            !Ref AppName
+        ClusterName:        !Ref ClusterName
+        DesiredCapacity:    !Ref DesiredCapacity
+        DesiredCount:       !Ref DesiredCount
+        ECSInstanceProfile: !GetAtt IAMRoleTemplate.Outputs.ECSInstanceProfile
+        ECSRole:            !GetAtt IAMRoleTemplate.Outputs.ECSRole
+        ECSSecurityGroup:   !GetAtt SecurityGroupTemplate.Outputs.EC2SecurityGroup
+        Image:              !Ref Image
+        InstanceType:       !Ref InstanceType
+        KeyName:            !Ref KeyName
+        MaxSize:            !Ref MaxSize
+        RedisHost:          !GetAtt ElastiCacheTemplate.Outputs.ElastiCacheCluster
+        ServiceName:        !Ref ServiceName
+        Subnets:            !Join [ ",", !Ref AppSubnets ]
+        TargetGroup:        !GetAtt ALBTemplate.Outputs.TargetGroup
+
+
+

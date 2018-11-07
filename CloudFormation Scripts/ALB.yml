@@ -1,0 +1,68 @@
+Description: 
+    Application Load Balancer for the ECS Cluster
+    
+Parameters:
+
+    VPC:
+        Type: AWS::EC2::VPC::Id
+        Description: VPC for the Application Load Balancer
+
+    Subnets:
+        Description: Subnets for the Application Load Balancer
+        Type: List<AWS::EC2::Subnet::Id>
+
+    ALBSecurityGroup:
+        Description: Security Groups for the Application Load Balancer
+        Type: List<AWS::EC2::SecurityGroup::Id>
+    
+    AppContainerPort:
+        Type: Number
+        Description: Container port of application
+        
+Resources:
+
+    ALB:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            Name: ECSApplicationLoadBalancer
+            Subnets: !Ref Subnets
+            SecurityGroups: !Ref ALBSecurityGroup
+            Tags:
+                - Key: Name
+                  Value: ECSApplicationLoadBalancer
+
+                  
+    TargetGroup:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            Name: ECSTargetGroup
+            VpcId: !Ref VPC
+            Port: !Ref AppContainerPort
+            Protocol: HTTP
+            HealthCheckProtocol: HTTP
+            HealthCheckIntervalSeconds: 20
+            UnhealthyThresholdCount: 3
+            HealthyThresholdCount: 2
+            HealthCheckPath: /health
+                              
+    Listener:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            LoadBalancerArn: !Ref ALB
+            Port: 80
+            Protocol: HTTP
+            DefaultActions:
+                - Type: forward
+                  TargetGroupArn: !Ref TargetGroup
+
+    
+
+Outputs:
+
+    ALB:
+        Description: Application Load Balancer Reference
+        Value: !Ref ALB
+
+    TargetGroup:
+        Description: The ARN of the target group
+        Value: !Ref TargetGroup

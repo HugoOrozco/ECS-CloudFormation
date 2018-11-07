@@ -1,0 +1,73 @@
+Description:
+  Security Groups for ECS and ALB
+
+Parameters:
+  VPC:
+    Description: VPC where the Security Groups are going to be created.
+    Type: AWS::EC2::VPC::Id 
+  
+Resources:
+  ALBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for the Application Load Balancer
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ecs-alb-sg
+  
+  EC2SecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for the EC2 Instances on the ECS Cluster
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: ecs-sg
+          
+  ElastiCacheSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for the ElastiCache Service to give access to the EC2 Instances
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: elasticache-ecs-sg          
+  
+  SecurityGroupIngress1:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref EC2SecurityGroup
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref ALBSecurityGroup
+
+  SecurityGroupIngress2:
+    Type: 'AWS::EC2::SecurityGroupIngress'
+    Properties:
+      GroupId: !Ref ElastiCacheSecurityGroup
+      IpProtocol: -1
+      SourceSecurityGroupId: !Ref EC2SecurityGroup 
+      
+Outputs:
+  ALBSecurityGroup:
+    Description: Reference to the new ALB Security Group
+    Value: !Ref ALBSecurityGroup
+    
+  EC2SecurityGroup:
+    Description: Reference to the new EC2 Security Group
+    Value: !Ref EC2SecurityGroup
+  
+  ElastiCacheSecurityGroup:
+    Description: Reference to the new ElastiCache Security Group
+    Value: !Ref ElastiCacheSecurityGroup
+  
